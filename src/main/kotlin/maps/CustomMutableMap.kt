@@ -8,9 +8,11 @@ interface CustomMutableMap<K, V> {
 
     // Provides read access to all keys of the map
     val keys: Iterable<K>
+        get() = entries.map { it.key }
 
     // Provides read access to all values of the map
     val values: Iterable<V>
+        get() = entries.map { it.value }
 
     // Returns the value at 'key', or null if there is no such value.
     // This operator allows array-like indexing.

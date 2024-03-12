@@ -1,60 +1,52 @@
 package maps
 
 class ListBasedMap<K, V> : CustomMutableMap<K, V> {
-
-    override val entries = CustomLinkedList<Entry<K, V>>()
+    override var entries: Iterable<Entry<K, V>> = CustomLinkedList()
     override val keys: Iterable<K>
         get() = entries.map { it.key }
     override val values: Iterable<V>
         get() = entries.map { it.value }
 
     override fun get(key: K): V? {
-        if (this.entries.isEmpty()) {
-            throw UnsupportedOperationException()
-        } else {
-            var current = this.entries.root.to
-            while (current!!.value.key != key) {
-                current = current.to
-            }
-            return current.value.value
+        if (key in keys) {
+            return entries.first { it.key == key }.value
         }
+        return null
     }
 
-    override fun set(key: K, value: V): V? = put(key, value)
+    override fun set(
+        key: K,
+        value: V,
+    ): V? {
+        var removed: V? = null
 
-    override fun put(key: K, value: V): V? {
-        return if (this.entries.isEmpty()) {
-            entries.add(Entry(key, value))
-            null
-        } else {
-            val old: List<Entry<K, V>> = entries.filter { it.key == key }
-            if (old.isEmpty()) {
-                entries.add(Entry(key, value))
-                null
-            } else {
-                val removed = this.remove(key)
-                entries.add(Entry(key, value))
-                removed
-            }
+        if (contains(key)) {
+            removed = this.remove(key)
         }
+        (entries as CustomLinkedList<Entry<K, V>>).add(Entry(key, value))
+        return removed
     }
 
-    override fun put(entry: Entry<K, V>): V? = put(entry.key, entry.value)
+    override fun put(
+        key: K,
+        value: V,
+    ): V? {
+        return this.set(key, value)
+    }
+
+    override fun put(entry: Entry<K, V>): V? {
+        return put(entry.key, entry.value)
+    }
 
     override fun remove(key: K): V? {
-        if (this.entries.isEmpty()) {
-            throw UnsupportedOperationException()
+        if (!contains(key)) {
+            return null
         } else {
-            var current = this.entries.root.to
-            while (current!!.value.key != key) {
-                current = current.to
-            }
-            var previous = this.entries.root.to
-            while (previous!!.to != current) {
-                previous = previous.to
-            }
-            previous.to = previous.to!!.to
-            return current.value.value
+            val removed = entries.first { it.key == key }
+            val temp: CustomLinkedList<Entry<K, V>> = CustomLinkedList()
+            entries.filter { it.key != key }.forEach { temp.add(it) }
+            entries = temp
+            return removed.value
         }
     }
 

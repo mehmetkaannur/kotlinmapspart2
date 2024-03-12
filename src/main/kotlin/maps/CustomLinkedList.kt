@@ -3,63 +3,59 @@ package maps
 import java.util.NoSuchElementException
 
 interface Node<T> {
-    var to: ValueNode<T>?
+    var next: Node<T>?
 }
 
-class RootNode<T>(override var to: ValueNode<T>? = null) : Node<T>
+class RootNode<T>(override var next: Node<T>?) : Node<T>
 
-class ValueNode<T>(val value: T, override var to: ValueNode<T>? = null) :
-    Node<T>
+class ValueNode<T>(var value: T, override var next: Node<T>?) : Node<T>
 
-class CustomLinkedList<T>(val root: RootNode<T> = RootNode()) :
-    MutableIterable<T> {
-    fun isEmpty() = root.to == null
+class CustomLinkedList<T> : MutableIterable<T> {
+    val root: RootNode<T> = RootNode(null)
 
-    fun head() = this.root.to
+    fun isEmpty() = root.next == null
 
-    fun add(new_value: T) {
-        val newNode: ValueNode<T> = ValueNode(new_value, this.root.to)
-        this.root.to = newNode
+    var head: ValueNode<T>
+        get() = root.next as ValueNode<T>
+        set(newNode) {
+            root.next = newNode
+        }
+
+    fun add(newValue: T) {
+        val newNode: ValueNode<T> = ValueNode(newValue, root.next)
+        root.next = newNode
     }
 
-    fun remove(): T {
-        if (this.isEmpty()) {
-            throw UnsupportedOperationException()
-        } else {
-            val removed = this.root.to!!.value
-            this.root.to = this.root.to!!.to
-            return removed
-        }
+    fun remove(): Node<T>? {
+        val removed: Node<T> = root.next ?: return null
+        root.next = removed.next
+        return removed
     }
 
     override fun iterator(): MutableIterator<T> {
         return object : MutableIterator<T> {
-            var current: Node<T>? = root
-            var lastReturn: Node<T>? = null
+            var previous: Node<T>? = null
+            var current: Node<T> = this@CustomLinkedList.root
 
-            override fun hasNext(): Boolean = current?.to != null
+            override fun hasNext(): Boolean = current.next != null
 
             override fun next(): T {
                 if (!hasNext()) {
                     throw NoSuchElementException()
-                } else {
-                    lastReturn = current?.to
-                    current = current?.to
-                    return (current as ValueNode<T>?)?.value!!
                 }
+                previous = current
+                current = current.next!!
+                return (current as ValueNode).value
             }
 
             override fun remove() {
-                if (lastReturn == null || lastReturn == root) {
+                if (!this@CustomLinkedList.isEmpty()) {
                     throw UnsupportedOperationException()
+                } else if (previous == this@CustomLinkedList.root) {
+                    current = this@CustomLinkedList.root
+                    previous = null
                 } else {
-                    var tempNode: Node<T> = root
-                    while (tempNode.to != lastReturn) {
-                        tempNode =
-                            tempNode.to ?: throw IllegalStateException()
-                    }
-                    tempNode.to = lastReturn!!.to
-                    lastReturn
+                    previous!!.next = current.next
                 }
             }
         }

@@ -1,163 +1,216 @@
 package maps;
 
-import com.sun.source.tree.Tree;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Comparator;
-import java.util.Iterator;
+import java.util.*;
+import java.util.stream.Stream;
 
 public class TreeBasedMap<K, V> implements CustomMutableMap<K, V> {
-    public TreeMapNode<K, V> root;
-    public TreeMapNode<K, V> parent;
-    public TreeMapNode<K, V> current;
-    public Comparator<K> keyComparator;
-    public TreeBasedMap(Comparator<K> keyComparator, TreeMapNode<K, V> root) {
+
+    private TreeMapNode<K, V> root = null;
+    private final Comparator<K> keyComparator;
+
+    public TreeBasedMap(Comparator<K> keyComparator) {
         this.keyComparator = keyComparator;
-        this.root = root;
     }
+
+    private class EntriesIterator implements Iterator<Entry<K, V>> {
+
+        Deque<TreeMapNode<K, V>> stack;
+        TreeMapNode<K, V> current;
+
+        public EntriesIterator() {
+            this.stack = new LinkedList<TreeMapNode<K, V>>();
+            this.current = root;
+        }
+
+
+        @Override
+        public boolean hasNext() {
+            return (!stack.isEmpty()) || current != null;
+        }
+
+        @Override
+        public Entry<K, V> next() {
+            TreeMapNode<K, V> next;
+            while (current != null) {
+                stack.push(current);
+                current = current.getLeft();
+            }
+            next = stack.pop();
+            current = next.getRight();
+            return new Entry<K, V>(next.getKey(), next.getValue());
+        }
+    }
+
+//    public ArrayList<Entry<K, V>> entryFinder(TreeMapNode<K, V> node) {
+//        ArrayList<Entry<K, V>> entries = new ArrayList<>();
+//        if (node.getRight() != null) {
+//            entries.addAll(entryFinder(node.getRight()));
+//        }
+//        if (node.getLeft() != null) {
+//            entries.addAll(entryFinder(node.getLeft()));
+//        }
+//        entries.add(new Entry<K, V>(node.getKey(), node.getValue()));
+//        return entries;
+//    }
+
     @NotNull
     @Override
     public Iterable<Entry<K, V>> getEntries() {
-        private class EntriesIterator implements Iterator<Entry<K, V>> {
-            @Override
-            public boolean hasNext() {
-                
-            }
-
-            @Override
-            public Entry<K, V> next() {
-                return null;
-            }
-        }
+        return EntriesIterator::new;
     }
 
     @NotNull
     @Override
     public Iterable<K> getKeys() {
-        return null;
+        ArrayList<K> keys = new ArrayList<K>();
+        for (Entry<K, V> entry : this.getEntries()) {
+            keys.add(entry.getKey());
+        }
+        return keys;
     }
 
     @NotNull
     @Override
     public Iterable<V> getValues() {
-        return null;
+        ArrayList<V> values = new ArrayList<V>();
+        for (Entry<K, V> entry : this.getEntries()) {
+            values.add(entry.getValue());
+        }
+        return values;
     }
 
     @Nullable
     @Override
     public V get(K key) {
-        while (current.value == key) {
-            if (current == null) {
-                return null;
+        TreeMapNode<K, V> current = root;
+        while (current != null) {
+            int compareResult = keyComparator.compare(key, current.getKey());
+            if (compareResult == 0) {
+                return current.getValue();
             }
-            else if (keyComparator.compare(key, current.getKey()) >= 0) {
-                parent = current;
-                current = current.getRight();
-            } else if (keyComparator.compare(key, current.getKey()) < 0) {
-                parent = current;
+            if (compareResult < 0) {
                 current = current.getLeft();
+            } else {
+                current = current.getRight();
             }
         }
-        return current.value;
+        return null;
     }
 
     @Nullable
     @Override
     public V set(K key, V value) {
-        while (current.value == key) {
-            if (current == null) {
-                return null;
-            }
-            else if (keyComparator.compare(key, current.getKey()) >= 0) {
-                parent = current;
-                current = current.getRight();
-            } else if (keyComparator.compare(key, current.getKey()) < 0) {
-                parent = current;
-                current = current.getLeft();
-            }
+        TreeMapNode<K, V> newNode = new TreeMapNode<>(key, value);
+        if (root == null) {
+            root = newNode;
+            return null;
         }
-        V val = current.value;
-        current.key = key;
-        current.value = value;
-        return val;
+        TreeMapNode<K, V> current = root, next;
+        while (true) {
+            int compareResult = keyComparator.compare(key, current.getKey());
+            if (compareResult == 0) {
+                V result = current.getValue();
+                current.setValue(value);
+                return result;
+            }
+            if (compareResult < 0) {
+                next = current.getLeft();
+                if (next == null) {
+                    current.setLeft(newNode);
+                    return null;
+                }
+            } else {
+                next = current.getRight();
+                if (next == null) {
+                    current.setRight(newNode);
+                    return null;
+                }
+            }
+            current = next;
+        }
     }
 
     @Nullable
     @Override
     public V put(K key, V value) {
-        while (current.value == key) {
-            if (current == null) {
-                current  = TreeMapNode<K, V>(key, value);
-                return null;
-            }
-            else if (keyComparator.compare(key, current.getKey()) >= 0) {
-                parent = current;
-                current = current.getRight();
-            } else if (keyComparator.compare(key, current.getKey()) < 0) {
-                parent = current;
-                current = current.getLeft();
-            }
-        }
-        V val = current.value;
-        current.key = key;
-        current.value = value;
-        return val;
+        return this.set(key, value);
     }
 
     @Nullable
     @Override
     public V put(@NotNull Entry<K, V> entry) {
-        return this.put(entry.getKey(), entry.getValue());
+        return this.set(entry.getKey(), entry.getValue());
     }
 
     @Nullable
     @Override
     public V remove(K key) {
-        while (current.key == key) {
-            if (current == null) {
-                return null;
-            }
-            else if (keyComparator.compare(key, current.getKey()) >= 0) {
-                parent = current;
-                current = current.getRight();
-            } else if (keyComparator.compare(key, current.getKey()) < 0) {
-                parent = current;
+        TreeMapNode<K, V> parent = null;
+        TreeMapNode<K, V> current = root;
+        while (current != null && keyComparator.compare(key, current.getKey()) !=
+                0) {
+            parent = current;
+            if (keyComparator.compare(key, current.getKey()) < 0) {
                 current = current.getLeft();
+            } else {
+                current = current.getRight();
             }
         }
-        V val = current.value;
-        if (current.getLeft() != null) {
-            parent = current;
-            current = current.getLeft();
-        } else if (current.getRight() != null) {
+        if (current == null) {
+            return null;
+        }
+        V value = current.getValue();
+        if (current.getLeft() == null) {
+            deleteNode(current, parent);
+        } else if (current.getRight() == null) {
+            deleteNode(current, parent);
+        } else {
+            TreeMapNode<K, V> nodeWithValueToDelete = current;
             parent = current;
             current = current.getRight();
-        } else {
-            return val;
-        }
-
-        while (current.key == null) {
-            if (current.getLeft() != null) {
-                current.key = current.getLeft().key;
-                current.value = current.getLeft().value;
+            while (current.getLeft() != null) {
                 parent = current;
                 current = current.getLeft();
-            } else if (current.getRight() != null) {
-                current.key = current.getRight().key;
-                current.value = current.getRight().value;
-                parent = current;
-                current = current.getRight();
+            }
+            nodeWithValueToDelete.setKey(current.getKey());
+            nodeWithValueToDelete.setValue(current.getValue());
+            deleteNode(current, parent);
+        }
+        return value;
+    }
+
+    void deleteNode(TreeMapNode<K, V> nodeToDelete, TreeMapNode<K, V> parent) {
+        if (parent == null) {
+            if (nodeToDelete.getLeft() == null) {
+                root = nodeToDelete.getRight();
+            } else {
+                root = nodeToDelete.getLeft();
+            }
+        } else if (parent.getLeft() == nodeToDelete) {
+            if (nodeToDelete.getLeft() == null) {
+                parent.setLeft(nodeToDelete.getRight());
+            } else {
+                parent.setLeft(nodeToDelete.getLeft());
+            }
+        } else {
+            if (nodeToDelete.getLeft() == null) {
+                parent.setRight(nodeToDelete.getRight());
+            } else {
+                parent.setRight(nodeToDelete.getLeft());
             }
         }
-
-        parent.setLeft(null);
-        parent.setRight(null);
-        return val;
     }
 
     @Override
     public boolean contains(K key) {
+        for (K keyFinder : this.getKeys()) {
+            if (keyFinder == key) {
+                return true;
+            }
+        }
         return false;
     }
 }
